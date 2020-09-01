@@ -24,6 +24,8 @@ CURSOR_GRAB = Qt.OpenHandCursor
 class Canvas(QWidget):
     zoomRequest = pyqtSignal(int)
     scrollRequest = pyqtSignal(int, int)
+
+    ## connected via labelimg.py ~ line 193
     newShape = pyqtSignal()
     selectionChanged = pyqtSignal(bool)
     shapeMoved = pyqtSignal()
@@ -569,6 +571,7 @@ class Canvas(QWidget):
 
     def keyPressEvent(self, ev):
         key = ev.key()
+        print("canvas keypress %s" % key )
         if key == Qt.Key_Escape and self.current:
             print('ESC press')
             self.current = None

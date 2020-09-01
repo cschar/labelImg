@@ -9,6 +9,10 @@ import re
 import sys
 import subprocess
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logging.info('Loading main ')
+
 from functools import partial
 from collections import defaultdict
 
@@ -204,6 +208,22 @@ class MainWindow(QMainWindow, WindowMixin):
         quit = action(getStr('quit'), self.close,
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
+
+
+
+        #### mys tuff
+        # newAction(parent-->self with partial above
+        # , text, slot=None, shortcut=None, icon=None,
+        #       tip=None, checkable=False, enabled=True):
+
+        # icon string locates in resources/icons directory
+        myConfigAction = action(getStr("openFile"), self.doMyConfiguration,
+        'Ctrl+T', 'done', getStr('myOpenFileDetail'))
+
+        mySecondAction = action(getStr("openFile"), self.doMySecondCallback,
+        '9', 'done', 'do the second action more explanation here')
+
+
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
 
@@ -246,8 +266,26 @@ class MainWindow(QMainWindow, WindowMixin):
         color1 = action(getStr('boxLineColor'), self.chooseColor1,
                         'Ctrl+L', 'color_line', getStr('boxLineColorDetail'))
 
+
+        ### 'w' hotkey here 
         createMode = action(getStr('crtBox'), self.setCreateMode,
                             'w', 'new', getStr('crtBoxDetail'), enabled=False)
+
+        ### TODO: when 'w' is pressed, if we are set on a current 'hotkey state'
+        ### , when the mouse is released after drawing on canvas.py
+        # send diff or extra signal to labelDialog, to create and add
+        # INSTANTLY, based off what 'label' state we are in
+        # 
+        # e.g. if in label state '1' ... create labelDialog and immediately
+        # verify with label at 1st index
+        # 
+
+        # createMode1 = action(getStr('crtBox'), self.setCreateMode,
+        #                     '1', 'new1', getStr('crtBoxDetail'), enabled=False)
+
+        # createMode2 = action(getStr('crtBox'), self.setCreateMode,
+        #                     '2', 'new2', getStr('crtBoxDetail'), enabled=False)
+
         editMode = action('&Edit\nRectBox', self.setEditMode,
                           'Ctrl+J', 'edit', u'Move and edit Boxs', enabled=False)
 
@@ -335,7 +373,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.drawSquaresOption.triggered.connect(self.toogleDrawSquare)
 
         # Store actions for further handling.
-        self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
+        self.actions = struct(save=save,
+        myConfig=myConfigAction,
+        save_format=save_format,
+        saveAs=saveAs,
+        open=open,
+        close=close,
+        resetAll = resetAll, deleteImg = deleteImg,
                               lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
@@ -358,6 +402,7 @@ class MainWindow(QMainWindow, WindowMixin):
             file=self.menu('&File'),
             edit=self.menu('&Edit'),
             view=self.menu('&View'),
+            myconfig=self.menu('&MyConfig'),
             help=self.menu('&Help'),
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
@@ -378,6 +423,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setCheckable(True)
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
+
+        addActions(self.menus.myconfig,
+                   (myConfigAction,
+                   mySecondAction))
 
         addActions(self.menus.file,
                    (open, opendir, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -620,7 +669,25 @@ class MainWindow(QMainWindow, WindowMixin):
         elif osName == 'Darwin':
             return ['open']
 
+    def doMySecondCallback(self, _value=False):
+        # if not self.mayContinue():
+        #     return
+        print("Second callback=== %s" % _value )
+
     ## Callbacks ##
+    def doMyConfiguration(self, _value=False):
+        # if not self.mayContinue():
+        #     return
+        print("MyConf callacbk ==== %s" % _value )
+            # path = os.path.dirname(ustr(self.filePath)) if self.filePath else '.'
+            # formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
+            # filters = "Image & Label files (%s)" % ' '.join(formats + ['*%s' % LabelFile.suffix])
+            # filename = QFileDialog.getOpenFileName(self, '%s - Choose Image or Label file' % __appname__, path, filters)
+            # if filename:
+            #     if isinstance(filename, (tuple, list)):
+            #         filename = filename[0]
+            #     self.loadFile(filename)
+
     def showTutorialDialog(self):
         subprocess.Popen(self.screencastViewer + [self.screencast])
 
@@ -650,6 +717,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.actions.editMode.setEnabled(not edit)
 
     def setCreateMode(self):
+        assert self.advanced()
+        self.toggleDrawMode(False)
+
+    def setCreateMode_Hotkey(self):
         assert self.advanced()
         self.toggleDrawMode(False)
 
@@ -881,6 +952,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         position MUST be in global coordinates.
         """
+        print("Creating new shape=====")
         if not self.useDefaultLabelCheckbox.isChecked() or not self.defaultLabelTextLine.text():
             if len(self.labelHist) > 0:
                 self.labelDialog = LabelDialog(
@@ -1449,6 +1521,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setDirty()
 
     def loadPredefinedClasses(self, predefClassesFile):
+        print("Attempting to load predefinedClassesFile=====")
+        logging.info("Attempting to load preDefinedClassesFile")
+
         if os.path.exists(predefClassesFile) is True:
             with codecs.open(predefClassesFile, 'r', 'utf8') as f:
                 for line in f:
