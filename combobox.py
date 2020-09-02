@@ -26,8 +26,24 @@ class ComboBox(QWidget):
         layout.addWidget(self.cb)
         self.setLayout(layout)
 
-    def update_items(self, items):
-        self.items = items
+        self.lockedLabel = None
 
-        self.cb.clear()
+        self.foundLock = False
+
+    def update_items(self, items, locked=False):
+        self.items = items
+        print("[combobox] updating items...")
+
+        if not locked:
+            self.cb.clear()
         self.cb.addItems(self.items)
+
+        self.foundLock = False
+        if (self.lockedLabel != None
+            and self.lockedLabel in items):
+          
+            print("[combobox] item matches lockedLabel:  settting...")
+            self.cb.setCurrentText(self.lockedLabel)
+
+            self.foundLock = True
+        

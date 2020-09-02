@@ -77,6 +77,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
         super(MainWindow, self).__init__()
+        logging.info(f"Setting defaultFilename to {defaultFilename}")
+        logging.info(f"Setting defaultPrefdefClassFile to {defaultPrefdefClassFile}")
+        logging.info(f"Setting defaultSaveDir to {defaultSaveDir}")
         self.setWindowTitle(__appname__)
 
         # Load setting in the main thread
@@ -143,6 +146,38 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Create and add combobox for showing unique labels in group
         self.comboBox = ComboBox(self)
+        
+
+        # lock labels so they don't reset when cycling through images
+        self.filterLock = QCheckBox(f"Lock Label Filter:")
+
+        if self.settings.get("lockedLabel"):
+            loadedLabel =  self.settings["lockedLabel"]
+            self.comboBox.lockedLabel = loadedLabel
+            self.filterLock.setChecked(True)
+            self.filterLock.setText(f"Lock Label Filter: {loadedLabel}")
+        else:
+            loadedLabel = ""
+
+        
+       
+        def filterLockSave(lockCheckBox):
+            if lockCheckBox.isChecked():
+               
+                text = self.comboBox.cb.currentText()
+                logging.debug(f"Setting lockedLabel to {text}")
+                self.comboBox.lockedLabel = text
+                self.settings["lockedLabel"] = text
+                self.filterLock.setText(f"Lock Label Filter: {text}")
+            else:
+                self.comboBox.lockedLabel = None
+                del self.settings["lockedLabel"]
+
+        self.filterLock.stateChanged.connect(lambda:filterLockSave(self.filterLock))
+        
+
+
+        listLayout.addWidget(self.filterLock)
         listLayout.addWidget(self.comboBox)
 
         # Create and add a widget for showing current label items
@@ -638,7 +673,11 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelFile = None
         self.canvas.resetState()
         self.labelCoordinates.clear()
-        self.comboBox.cb.clear()
+        if not self.filterLock.isChecked():
+            logging.debug("resetting combobox")
+            self.comboBox.cb.clear()
+            
+        
 
     def currentItem(self):
         items = self.labelList.selectedItems()
@@ -836,6 +875,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.updateComboBox()
 
     def loadLabels(self, shapes):
+        logging.debug(f"Loading labels for {len(shapes)} shapes")
         s = []
         for label, points, line_color, fill_color, difficult in shapes:
             shape = Shape(label=label)
@@ -862,9 +902,18 @@ class MainWindow(QMainWindow, WindowMixin):
                 shape.fill_color = generateColorByText(label)
 
             self.addLabel(shape)
+        
+        ## TODO even if reset clears it,
+        # this clears it too
         self.updateComboBox()
         self.canvas.loadShapes(s)
 
+        if (self.comboBox.foundLock is False
+        and self.comboBox.lockedLabel):
+            print(f"lockedLabel {self.comboBox.lockedLabel} not found in loaded labels.. disabling")
+            for i in range(self.labelList.count()):
+                self.labelList.item(i).setCheckState(0)
+            
     def updateComboBox(self):
         # Get the unique labels and add them to the Combobox.
         itemsTextList = [str(self.labelList.item(i).text()) for i in range(self.labelList.count())]
@@ -917,7 +966,9 @@ class MainWindow(QMainWindow, WindowMixin):
         # fix copy and delete
         self.shapeSelectionChanged(True)
 
+    ### TODO , trigger this when locked
     def comboSelectionChanged(self, index):
+        # triggers the labelItemChanged below...
         text = self.comboBox.cb.itemText(index)
         for i in range(self.labelList.count()):
             if text == "":

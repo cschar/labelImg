@@ -16,6 +16,9 @@ class Settings(object):
     def __getitem__(self, key):
         return self.data[key]
 
+    def __delitem__(self, key):
+        del self.data[key]
+
     def get(self, key, default=None):
         if key in self.data:
             return self.data[key]
